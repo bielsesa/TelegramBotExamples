@@ -43,7 +43,7 @@ namespace TelegramBot
 
             // Normal text message, with all the properties 
             // a text message can have.
-            Message message = await botClient.SendTextMessageAsync(
+            Message textMessage = await botClient.SendTextMessageAsync(
               chatId: e.Message.Chat, // or a chat id: 123456789
               text: "Trying *all the parameters* of `sendMessage` method",
               parseMode: ParseMode.Markdown,
@@ -58,11 +58,61 @@ namespace TelegramBot
             // Almost all of the methods for sending messages return you 
             // the message you just sent.
             Console.WriteLine(
-              $"{message.From.FirstName} sent message {message.MessageId} " +
-              $"to chat {message.Chat.Id} at {message.Date.ToLocalTime()}. " + // if you don't use ToLocalTime(), the bot will show the UTC time.
-              $"It is a reply to message {message.ReplyToMessage.MessageId} " +
-              $"and has {message.Entities.Length} message entities."
+              $"{textMessage.From.FirstName} sent message {textMessage.MessageId} " +
+              $"to chat {textMessage.Chat.Id} at {textMessage.Date.ToLocalTime()}. " + // if you don't use ToLocalTime(), the bot will show the UTC time.
+              $"It is a reply to message {textMessage.ReplyToMessage.MessageId} " +
+              $"and has {textMessage.Entities.Length} message entities."
             );
+
+            // Photo message. It gets the image from a URL on the internet.
+            // All images can have captions. You can use HTML or Markdown on them.
+            Message photoMessage = await botClient.SendPhotoAsync(
+              chatId: e.Message.Chat,
+              photo: "https://github.com/TelegramBots/book/raw/master/src/docs/photo-ara.jpg",
+              caption: "<b>Ara bird</b>. <i>Source</i>: <a href=\"https://pixabay.com\">Pixabay</a>",
+              parseMode: ParseMode.Html
+            );
+
+            // Sticker message. Sticker files should be in WebP format.
+            // Sends two messages. The first one gets the sticker by passing HTTP URL
+            // to WebP sticker file, and the second by reusing the file_id of the
+            // first sticker (kinda like a cache?)
+            Message stickerMessage1 = await botClient.SendStickerAsync(
+              chatId: e.Message.Chat,
+              sticker: "https://github.com/TelegramBots/book/raw/master/src/docs/sticker-fred.webp"
+            );
+
+            Message stickerMessage2 = await botClient.SendStickerAsync(
+              chatId: e.Message.Chat,
+              sticker: stickerMessage1.Sticker.FileId
+            );
+
+            // Audio message. Opens it in Media Player. MP3 Format.
+            // Telegram can read metadata from the MP3 file (that's why
+            // there are commented properties; the bot gets the same
+            // properties, but from the file metadata!)
+            Message audioMessage = await botClient.SendAudioAsync(
+                e.Message.Chat,
+                "https://github.com/TelegramBots/book/raw/master/src/docs/audio-guitar.mp3"
+                /* ,
+                performer: "Joel Thomas Hunger",
+                title: "Fun Guitar and Ukulele",
+                duration: 91 // in seconds
+                */
+            );
+
+            // Voice message. Not opened in Media Player (played directly
+            // on the chat). OGG Format.
+            // In this case, the OGG file is on our disk!
+            Message voiceMessage;
+            using (var stream = System.IO.File.OpenRead("C:/Users/Biel/source/repos/TelegramBot/voice-nfl_commentary.ogg"))
+            {
+                voiceMessage = await botClient.SendVoiceAsync(
+                  chatId: e.Message.Chat,
+                  voice: stream,
+                  duration: 36
+                );
+            }
         }
     }
 }
