@@ -3,10 +3,11 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using Telegram.Bot.Exceptions;
 
 namespace TelegramBot
 {
-    class Program
+    class ExampleBot
     {
         static ITelegramBotClient botClient;
         static void Main(string[] args)
@@ -16,18 +17,38 @@ namespace TelegramBot
 
             // event handler for when the bot receives a message
             botClient.OnMessage += BotClient_OnMessage;
+            botClient.OnReceiveError += BotClient_OnReceiveError;
 
-            // bot starts listening for messages
-            botClient.StartReceiving();
+            // bot starts listening for messages            
+            try
+            {
+                botClient.StartReceiving();
+            }
+            catch (ApiRequestException)
+            {
+                Console.WriteLine("The Bot token is invalid.");
+                Console.ReadLine();
+                return;
+            }
 
             Console.WriteLine($"Bot number {me.Id} with name {me.FirstName} started. Press any key to close.");
             Console.ReadLine();
+        }
+
+        // Keep alive method. In case the bot indicates a receive error, it starts it again.
+        private static void BotClient_OnReceiveError(object sender, Telegram.Bot.Args.ReceiveErrorEventArgs e)
+        {
+            if (!botClient.IsReceiving)
+            {
+                botClient.StartReceiving();
+            }
         }
 
         // async OnMessage event task for the bot
         // it has to be async so the bot can be always listening
         private async static void BotClient_OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
+            
             // Normal text message. Checks wether the message does have text.
             // in case it does, the bot answers.
             #region Text Message
@@ -105,7 +126,7 @@ namespace TelegramBot
             Message audioMessage = await botClient.SendAudioAsync(
                 e.Message.Chat,
                 "https://github.com/TelegramBots/book/raw/master/src/docs/audio-guitar.mp3"
-                /* ,
+                /*,
                 performer: "Joel Thomas Hunger",
                 title: "Fun Guitar and Ukulele",
                 duration: 91 // in seconds
@@ -127,6 +148,7 @@ namespace TelegramBot
                 );
             }
             #endregion
+            
 
             // You can send MP4 files as a regular video or as a video note.
             // Other video formats must be sent as a file.
@@ -137,18 +159,21 @@ namespace TelegramBot
             // of the video. In this case the video is streamed,
             // meaning the user can partly watch the video on stream, without
             // having to download it completely.
+            #region Video Message
             Message videoMessage = await botClient.SendVideoAsync(
                     chatId: e.Message.Chat,
                     video: "https://raw.githubusercontent.com/TelegramBots/book/master/src/docs/video-countdown.mp4",
                     thumb: "https://raw.githubusercontent.com/TelegramBots/book/master/src/2/docs/thumb-clock.jpg",
                     supportsStreaming: true
              );
-
+            #endregion
+            
             // Video note message. They are shown in circles to the user.
             // They are usually short (1 minute or less).
             // You can send a video note only by the video file or
             // reusing the file_id of another video note.
             // (sending it by its HTTP URL is not supported currently)
+            #region Video Note Message
             Message videoNoteMessage;
             using (var stream = System.IO.File.OpenRead("C:/Users/step/Source/Repos/TelegramBotExamples/video-waves.mp4"))
             {
@@ -158,6 +183,51 @@ namespace TelegramBot
                         duration: 47,
                         length: 360 // value of width/height
                     );
+            }
+            #endregion
+
+            // Poll message. They can be sent only to groups and channels.
+            // You can optionally send a keyboard with a poll,
+            // both inline and a regular one. 
+            #region Poll Message
+            Message pollMessage = await botClient.SendPollAsync(
+                chatId: "@group_or_channel_username",
+                question: "Did you ever hear the tragedy of Darth Plagueis The Wise?",
+                options: new []
+                {
+                    "Yes for the hundredth time!",
+                    "No, who's that?"
+                }
+            );
+            #endregion
+
+            // To stop the poll, you need to know original chat and message ids
+            // (you get them from the Poll object you get on SendPollAsync, the pollMessage)
+            #region Closing a Poll
+            Poll poll = await botClient.StopPollAsync(
+                chatId: pollMessage.Chat.Id,
+                messageId: pollMessage.MessageId
+            );
+            #endregion
+            
+
+            // Filtering messages for commands
+            if (e.Message.Text == "/sayhello")
+            {
+                Message sayHello = await botClient.SendTextMessageAsync
+                (
+                    chatId: e.Message.Chat.Id,
+                    text: "Hello! Glad to see you!"
+                );
+            }
+
+            if (e.Message.Text == "/saygoodbye")
+            {
+                Message sayHello = await botClient.SendTextMessageAsync
+                (
+                    chatId: e.Message.Chat.Id,
+                    text: "Bye! Have a nice day!"
+                );
             }
         }
     }
