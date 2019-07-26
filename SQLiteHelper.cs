@@ -1,11 +1,56 @@
 ﻿using System;
 using System.Data.SQLite;
 using System.Data;
+using System.Collections.Generic;
 
 namespace TelegramBot
 {
     class SQLiteHelper
     {
+        private static SQLiteConnection sqlCon = new SQLiteConnection(String.Format("Data Source={0};Version=3;FailIfMissing=True;",
+                                                    GlobalData.BuildDir + GlobalData.UserDbFilename));
+
+        // public method to get currently registered users
+        public static Dictionary<long,string> GetRegisteredUsers()
+        {
+            Dictionary<long, string> usersDict = new Dictionary<long, string>();
+            DataSet usersDataSet = new DataSet();
+
+            /*using (SQLiteConnection sQLiteCon = new SQLiteConnection(String.Format("Data Source={0};Version=3;FailIfMissing=True;",
+                                                    GlobalData.BuildDir + GlobalData.UserDbFilename)))*/
+            using (SQLiteConnection sQLiteCon = new SQLiteConnection("Data Source=C:/Users/step/source/repos/TelegramBotExamples/users.db;Version=3;FailIfMissing=True;"))
+            {
+                try
+                {
+                    string commandText = "SELECT * FROM User";
+                    SQLiteDataAdapter SQLiteAdap = new SQLiteDataAdapter(commandText, sQLiteCon);
+                    SQLiteAdap.Fill(usersDataSet, "User");
+                }
+                catch (SQLiteException ex)
+                {
+                    Console.WriteLine("Error " + ex.ErrorCode + ": " + ex.Message);
+                }
+            }
+
+            if (usersDataSet.Tables["User"].Rows != null)
+            {
+                foreach (DataRow dataRow in usersDataSet.Tables["User"].Rows)
+                {
+                    try
+                    {
+                        usersDict.Add(long.Parse(dataRow["userId"].ToString()), dataRow["timeStamp"].ToString());
+                    }
+                    catch (Exception)
+                    {
+                        Console.WriteLine("Couldn't convert ID to desired format.");
+                    }
+                }
+            }            
+
+            return usersDict;
+        }
+
+        // public method to register new users
         public static void RegisterUser(long userId)
         {
 
@@ -16,6 +61,7 @@ namespace TelegramBot
             }
         }
 
+        // private method to insert users in DB
         private static void InsertNewUserCommand(SQLiteConnection sQLiteCon, long userId)
         {
             DateTime currentDateTime = Convert.ToDateTime(DateTime.Now.ToString("dd-MMM-yyyy"));
@@ -40,9 +86,10 @@ namespace TelegramBot
                 }
                 insertCmd.ExecuteNonQuery();
             }
-            catch (SQLiteException)
+            catch (SQLiteException ex)
             {
                 Console.WriteLine("Couldn't insert new user to DB.");
+                Console.WriteLine("Error " + ex.ErrorCode + ": " + ex.Message);
             }
         }
     }

@@ -16,6 +16,10 @@ namespace TelegramBot
 
         static void Main(string[] args)
         {
+            // gets the registered users from the DB
+            registeredUsers = SQLiteHelper.GetRegisteredUsers();
+
+            // gets the bot with its authorization token
             botClient = new TelegramBotClient("953705394:AAFtLctlHehkU9qdI06-QLYPr-cGHel0tQY");
             var me = botClient.GetMeAsync().Result;
 
@@ -30,7 +34,7 @@ namespace TelegramBot
             }
             catch (ApiRequestException)
             {
-                Console.WriteLine("The Bot token is invalid.");
+                Console.WriteLine("The Bot token is invalid. Press any key to close.");
                 Console.ReadLine();
                 return;
             }
@@ -38,7 +42,8 @@ namespace TelegramBot
             // create timer to send the current time every 30 minutes
             Timer halfHourTimer = new Timer();
             halfHourTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
-            halfHourTimer.Interval = 1800000;
+            //halfHourTimer.Interval = 1800000;
+            halfHourTimer.Interval = 20000;
             halfHourTimer.Enabled = true;
 
             Console.WriteLine($"Bot number {me.Id} with name {me.FirstName} started. Press any key to close.");
@@ -47,13 +52,17 @@ namespace TelegramBot
 
         private async static void OnTimedEvent(object source, ElapsedEventArgs e)
         {
-            foreach(KeyValuePair<long,string> pair in registeredUsers)
+            if (registeredUsers.Count != 0)
             {
-                await botClient.SendTextMessageAsync(
-                    chatId: pair.Key,
-                    text: String.Format("Hola! La hora actual es: {0:HH:mm:ss}", DateTime.Now)
-                );
-            }            
+                foreach (KeyValuePair<long, string> pair in registeredUsers)
+                {
+                    await botClient.SendTextMessageAsync(
+                        chatId: pair.Key,
+                        text: String.Format("Hi! The current time is: {0:HH:mm:ss}", DateTime.Now)
+                    );
+                }
+            }
+                            
         }
 
         // Keep alive method. In case the bot indicates a receive error, it starts it again.
@@ -75,7 +84,8 @@ namespace TelegramBot
             // If not, save the UserId (actually, it's the chat id)
             if (!registeredUsers.ContainsKey(currentChatId))
             {
-                registeredUsers.Add(currentChatId, "");
+                registeredUsers.Add(currentChatId, DateTime.Now.ToString());
+                SQLiteHelper.RegisterUser(currentChatId);
 
                 Console.WriteLine($"User registered with ID {currentChatId}.");
 
@@ -90,10 +100,14 @@ namespace TelegramBot
             {
                 string currentRegistUsers = "These are the currently registered users:";
 
-                foreach (KeyValuePair<long,string> pair in registeredUsers)
+                if (registeredUsers.Count != 0)
                 {
-                    currentRegistUsers += $"\n- *{pair.Key}*";
+                    foreach (KeyValuePair<long, string> pair in registeredUsers)
+                    {
+                        currentRegistUsers += $"\n- *{pair.Key}*";
+                    }
                 }
+                    
 
                 await botClient.SendTextMessageAsync
                 (
@@ -102,20 +116,29 @@ namespace TelegramBot
                 );
             }
 
-            if (e.Message.Text == "/whattime")
+            else if (e.Message.Text == "/whattime")
             {
-                string currentRegistUsers = "These are the currently registered users:";
-
-                foreach (KeyValuePair<long,string> pair in registeredUsers)
-                {
-                    currentRegistUsers += $"\n- *{pair.Key}*";
-                }
-
-                await botClient.SendTextMessageAsync
-                (
-                    chatId: currentChatId,
-                    text: currentRegistUsers
+                await botClient.SendTextMessageAsync(
+                    chatId: e.Message.Chat.Id,
+                    text: String.Format("Hey! The current time is: {0:HH:mm:ss}", DateTime.Now)
                 );
+            }
+
+            else
+            {
+                if (registeredUsers.Count != 0)
+                {
+                    foreach (KeyValuePair<long, string> pair in registeredUsers)
+                    {
+                        if (pair.Key != e.Message.Chat.Id)
+                        {
+                            await botClient.SendTextMessageAsync(
+                                chatId: pair.Key,
+                                text: "Hey! Another registered user said: " + e.Message.Text
+                            );
+                        }
+                    }
+                }
             }
         }
     }
