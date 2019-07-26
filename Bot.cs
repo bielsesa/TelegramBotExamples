@@ -39,12 +39,12 @@ namespace TelegramBot
                 return;
             }
 
-            // create timer to send the current time every 30 minutes
-            Timer halfHourTimer = new Timer();
-            halfHourTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+            // create timer to send the current time every 5 minutes
+            Timer timer = new Timer();
+            timer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
             //halfHourTimer.Interval = 1800000;
-            halfHourTimer.Interval = 20000;
-            halfHourTimer.Enabled = true;
+            timer.Interval = 300000;
+            timer.Enabled = true;
 
             Console.WriteLine($"Bot number {me.Id} with name {me.FirstName} started. Press any key to close.");
             Console.ReadLine();
@@ -58,11 +58,10 @@ namespace TelegramBot
                 {
                     await botClient.SendTextMessageAsync(
                         chatId: pair.Key,
-                        text: String.Format("Hi! The current time is: {0:HH:mm:ss}", DateTime.Now)
+                        text: String.Format("Hola! El tiempo actual es: {0:T}", DateTime.Now)
                     );
                 }
-            }
-                            
+            }                            
         }
 
         // Keep alive method. In case the bot indicates a receive error, it starts it again.
@@ -85,26 +84,28 @@ namespace TelegramBot
             if (!registeredUsers.ContainsKey(currentChatId))
             {
                 registeredUsers.Add(currentChatId, DateTime.Now.ToString());
-                SQLiteHelper.RegisterUser(currentChatId);
+                SQLiteHelper.RegisterUser(currentChatId, DateTime.Now.ToString());
 
                 Console.WriteLine($"User registered with ID {currentChatId}.");
 
                 await botClient.SendTextMessageAsync
                 (
                     chatId: currentChatId,
-                    text: "You were registered!"
+                    //text: "You were registered!"
+                    text: "¡Te has registrado!"
                 );
             }
 
             if (e.Message.Text == "/showusers")
             {
-                string currentRegistUsers = "These are the currently registered users:";
+                string currentRegistUsers = //"These are the currently registered users:";
+                                               "Los usuarios registrados actualmente son:";
 
                 if (registeredUsers.Count != 0)
                 {
                     foreach (KeyValuePair<long, string> pair in registeredUsers)
                     {
-                        currentRegistUsers += $"\n- *{pair.Key}*";
+                        currentRegistUsers += $"\n- {pair.Key}";
                     }
                 }
                     
@@ -120,13 +121,14 @@ namespace TelegramBot
             {
                 await botClient.SendTextMessageAsync(
                     chatId: e.Message.Chat.Id,
-                    text: String.Format("Hey! The current time is: {0:HH:mm:ss}", DateTime.Now)
+                    //text: String.Format("Hey! The current time is: {0:T}", DateTime.Now)
+                    text: String.Format("El tiempo actual es: {0:T}", DateTime.Now)
                 );
             }
 
             else
             {
-                if (registeredUsers.Count != 0)
+                if (registeredUsers.Count != 0 && !e.Message.Text.Contains("/"))
                 {
                     foreach (KeyValuePair<long, string> pair in registeredUsers)
                     {
